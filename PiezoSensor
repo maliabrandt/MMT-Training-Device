@@ -1,0 +1,80 @@
+// Malia Brandt, Vibha Kamath 
+// December 2024
+// Senior Design Project, MMT Training Device 
+//
+// This code runs on Arduino Uno R4. It takes in information from a piezoelectric force sensor,
+// then uses the input to determine which message to display on the LCD
+// Sources: 
+// https://learn.sparkfun.com/tutorials/force-sensitive-resistor-hookup-guide 
+// https://learn.sparkfun.com/tutorials/basic-character-lcd-hookup-guide
+
+const int FSR_PIN = A0; // Pin connected to FSR/resistor divider
+// Measure the voltage at 5V and resistance of your 3.3k resistor, and enter
+// their value’s below:
+const float VCC = 4.77; // Measured voltage of Ardunio 5V line
+const float R_DIV = 2970; // Measured resistance of 3k resistors
+// include the library code:
+#include <LiquidCrystal.h>
+//initialize the library by associating any needed LCD interface pin
+//with the arduino pin number it is connected to
+const int rs = 13, en = 12, d4 = 11, d5 = 10, d6 = 9, d7 = 8;
+LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
+void setup()
+{
+  //set up the LCD’s number of columns and rows:
+  lcd.begin(16, 2);
+  Serial.begin(9600);
+  pinMode(FSR_PIN, INPUT);
+}
+void loop()
+{
+  int fsrADC = analogRead(FSR_PIN);
+  // If the FSR has no pressure, the resistance will be
+  // near infinite. So the voltage should be near 0.
+  if (fsrADC != 0) // If the analog reading is non-zero
+  {
+    // Use ADC reading to calculate voltage:
+    float fsrV = fsrADC * VCC / 1023.0;
+    // Use voltage and static resistor value to
+    // calculate FSR resistance:
+    float fsrR = R_DIV * (VCC / fsrV - 1.0);
+    Serial.println("Resistance:" + String(fsrR) + " ohms");
+    // Guesstimate force based on slopes in figure 3 of
+    // FSR datasheet:
+    float force;
+    float fsrG = 1.0 / fsrR; // Calculate conductance
+    // Break parabolic curve down into two linear slopes:
+    if (fsrR <= 600)
+      force = (fsrG - 0.00075) / 0.00000032639;
+    else
+      force =  fsrG / 0.000000642857;
+    Serial.println("Force: " + String(force) + " g");
+    Serial.println();
+    String message;
+    String message2;
+    if (force > 7) {
+      message = "Too strong!";
+      message2 = "Ouch :(";
+    }
+    else if (force < 7 and force > 5) {
+      message = "Doing great!";
+      message2 = "Keep going";
+    }
+    else if (force < 5) {
+      message = "Too weak!";
+      message2 = "Pull harder";
+    }
+     //Print a message to the LCD.
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    //lcd.print("Force: "+ String(force) + " g");
+    lcd.print(message);
+    lcd.setCursor(0,1);
+    lcd.print(message2);
+    delay(500);
+  }
+  else
+  {
+    // No pressure detected
+  }
+}
